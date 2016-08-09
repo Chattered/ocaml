@@ -29,6 +29,8 @@ type t
 
 val empty: t
 val initial: t
+val clear_diff: t -> t
+val iter_diff : (Ident.t -> value_description -> unit) -> t -> unit
 val diff: t -> t -> Ident.t list
 
 type type_descriptions =

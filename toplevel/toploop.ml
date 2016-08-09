@@ -33,6 +33,9 @@ type directive_fun =
 let toplevel_value_bindings =
   (Hashtbl.create 37 : (string, Obj.t) Hashtbl.t)
 
+let on_diff = ref ((fun _ _ _ _ -> ()), fun _ -> ())
+let set_on_diff f g = on_diff := (f,g)
+
 let getvalue name =
   try
     Hashtbl.find toplevel_value_bindings name
@@ -242,8 +245,12 @@ let execute_phrase print_outcome ppf phr =
       let lam = Translmod.transl_toplevel_definition str in
       Warnings.check_fatal ();
       begin try
-        toplevel_env := newenv;
+        let oldenv = !toplevel_env in
+        toplevel_env := Env.clear_diff newenv;
         let res = load_lambda ppf lam in
+        (try
+          Env.iter_diff (fst !on_diff oldenv newenv) newenv
+        with exc -> snd !on_diff exc);
         let out_phr =
           match res with
           | Result v ->

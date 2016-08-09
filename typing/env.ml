@@ -162,6 +162,7 @@ type type_descriptions =
 
 type t = {
   values: (Path.t * value_description) EnvTbl.t;
+  diff_values : (Path.t * value_description) EnvTbl.t;
   constrs: constructor_description EnvTbl.t;
   labels: label_description EnvTbl.t;
   types: (Path.t * (type_declaration * type_descriptions)) EnvTbl.t;
@@ -209,7 +210,7 @@ and functor_components = {
 let subst_modtype_maker (subst, mty) = Subst.modtype subst mty
 
 let empty = {
-  values = EnvTbl.empty; constrs = EnvTbl.empty;
+  values = EnvTbl.empty; diff_values = EnvTbl.empty; constrs = EnvTbl.empty;
   labels = EnvTbl.empty; types = EnvTbl.empty;
   modules = EnvTbl.empty; modtypes = EnvTbl.empty;
   components = EnvTbl.empty; classes = EnvTbl.empty;
@@ -217,6 +218,10 @@ let empty = {
   summary = Env_empty; local_constraints = false; gadt_instances = [];
   in_signature = false;
  }
+
+let clear_diff env = { env with diff_values = EnvTbl.empty }
+
+let iter_diff f env = EnvTbl.fold_name (fun n (_,d) () -> f n d) env.diff_values ()
 
 let in_signature env = {env with in_signature = true}
 
@@ -1145,6 +1150,7 @@ and store_value ?check slot id path decl env renv =
   may (fun f -> check_usage decl.val_loc id f value_declarations) check;
   { env with
     values = EnvTbl.add "value" slot id (path, decl) env.values renv.values;
+    diff_values = EnvTbl.add "value" slot id (path, decl) env.diff_values EnvTbl.empty;
     summary = Env_value(env.summary, id, decl) }
 
 and store_type slot id path info env renv =

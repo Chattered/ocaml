@@ -18,6 +18,9 @@ open Format
 val getvalue : string -> Obj.t
 val setvalue : string -> Obj.t -> unit
 
+val set_on_diff : (Env.t -> Env.t -> Ident.t -> Types.value_description -> unit)
+                  -> (exn -> unit) -> unit
+
 (* Set the load paths, before running anything *)
 
 val set_paths : unit -> unit

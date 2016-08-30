@@ -33,8 +33,10 @@ type directive_fun =
 let toplevel_value_bindings =
   (Hashtbl.create 37 : (string, Obj.t) Hashtbl.t)
 
-let on_diff = ref ((fun _ _ _ _ -> ()), fun _ -> ())
-let set_on_diff f g = on_diff := (f,g)
+let on_diff = ref ((fun _ _ _ -> ()), (fun () -> ()), (fun _ _ -> ()), (fun _ -> ()))
+let on_parse = ref ((fun _ -> ()), fun _ -> ())
+let set_on_diff enter ex f exc = on_diff := (enter,ex,f,exc)
+let set_on_parse f g = on_parse := (f,g)
 
 let getvalue name =
   try
@@ -239,6 +241,8 @@ let execute_phrase print_outcome ppf phr =
       Typecore.reset_delayed_checks ();
       let (str, sg, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
+      (try fst !on_parse str;
+       with exc -> snd !on_parse exc);
       let sg' = Typemod.simplify_signature sg in
       ignore (Includemod.signatures oldenv sg sg');
       Typecore.force_delayed_checks ();
@@ -248,9 +252,12 @@ let execute_phrase print_outcome ppf phr =
         let oldenv = !toplevel_env in
         toplevel_env := Env.clear_diff newenv;
         let res = load_lambda ppf lam in
+        let (enter,ex,f,excf) = !on_diff in
         (try
-          Env.iter_diff (fst !on_diff oldenv newenv) newenv
-        with exc -> snd !on_diff exc);
+            enter str oldenv newenv;
+            Env.iter_diff f newenv;
+            ex ()
+        with exc -> excf exc);
         let out_phr =
           match res with
           | Result v ->

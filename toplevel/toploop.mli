@@ -18,8 +18,12 @@ open Format
 val getvalue : string -> Obj.t
 val setvalue : string -> Obj.t -> unit
 
-val set_on_diff : (Env.t -> Env.t -> Ident.t -> Types.value_description -> unit)
-                  -> (exn -> unit) -> unit
+val set_on_diff : (Typedtree.structure -> Env.t -> Env.t -> unit)
+                  -> (unit -> unit)
+                  -> (Ident.t -> Types.value_description -> unit)
+                  -> (exn -> unit)
+                  -> unit
+val set_on_parse : (Typedtree.structure -> unit) -> (exn -> unit) -> unit
 
 (* Set the load paths, before running anything *)
 

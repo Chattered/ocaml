@@ -18,12 +18,27 @@ open Format
 val getvalue : string -> Obj.t
 val setvalue : string -> Obj.t -> unit
 
-val set_on_diff : (Typedtree.structure -> Env.t -> Env.t -> unit)
-                  -> (unit -> unit)
-                  -> (Ident.t -> Types.value_description -> unit)
-                  -> (exn -> unit)
-                  -> unit
-val set_on_parse : (Typedtree.structure -> unit) -> (exn -> unit) -> unit
+type env_diff_hooks =
+  {
+    enter_env_diff : Typedtree.structure -> Env.t -> Env.t -> unit;
+    env_diff_hook : Ident.t -> Types.value_description -> unit;
+    env_diff_hook_exc : exn -> unit;
+    env_diff_parse_hook : Typedtree.structure -> unit;
+    env_diff_parse_hook_exc : exn -> unit;
+    exit_env_diff : unit -> unit;
+  }
+
+type parse_hooks =
+  {
+    parse_hook : Typedtree.structure -> unit;
+    parse_hook_exc : exn -> unit;
+  }
+
+val env_diff_nohooks : env_diff_hooks
+val parse_nohooks : parse_hooks
+
+val set_env_diff_hooks : env_diff_hooks -> unit
+val set_parse_hooks : parse_hooks -> unit
 
 (* Set the load paths, before running anything *)
 

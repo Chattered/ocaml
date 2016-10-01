@@ -33,10 +33,42 @@ type directive_fun =
 let toplevel_value_bindings =
   (Hashtbl.create 37 : (string, Obj.t) Hashtbl.t)
 
-let on_diff = ref ((fun _ _ _ -> ()), (fun () -> ()), (fun _ _ -> ()), (fun _ -> ()))
-let on_parse = ref ((fun _ -> ()), fun _ -> ())
-let set_on_diff enter ex f exc = on_diff := (enter,ex,f,exc)
-let set_on_parse f g = on_parse := (f,g)
+type env_diff_hooks =
+  {
+    enter_env_diff : Typedtree.structure -> Env.t -> Env.t -> unit;
+    env_diff_hook : Ident.t -> Types.value_description -> unit;
+    env_diff_hook_exc : exn -> unit;
+    env_diff_parse_hook : Typedtree.structure -> unit;
+    env_diff_parse_hook_exc : exn -> unit;
+    exit_env_diff : unit -> unit;
+  }
+
+type parse_hooks =
+  {
+    parse_hook : Typedtree.structure -> unit;
+    parse_hook_exc : exn -> unit;
+  }
+
+let env_diff_nohooks =
+  {
+    enter_env_diff = (fun _ _ _ -> ());
+    env_diff_hook = (fun _ _ -> ());
+    env_diff_hook_exc = (fun _ -> ());
+    env_diff_parse_hook = (fun _ -> ());
+    env_diff_parse_hook_exc = (fun _ -> ());
+    exit_env_diff = (fun () -> ());
+  }
+
+let parse_nohooks =
+  {
+    parse_hook = (fun _ -> ());
+    parse_hook_exc = (fun _ -> ());
+  }
+
+let env_diff_hooks = ref env_diff_nohooks
+let parse_hooks = ref parse_nohooks
+let set_env_diff_hooks hooks = env_diff_hooks := hooks
+let set_parse_hooks hooks = parse_hooks := hooks
 
 let getvalue name =
   try
@@ -241,8 +273,8 @@ let execute_phrase print_outcome ppf phr =
       Typecore.reset_delayed_checks ();
       let (str, sg, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
-      (try fst !on_parse str;
-       with exc -> snd !on_parse exc);
+      (try !parse_hooks.parse_hook str;
+       with exc -> !parse_hooks.parse_hook_exc exc);
       let sg' = Typemod.simplify_signature sg in
       ignore (Includemod.signatures oldenv sg sg');
       Typecore.force_delayed_checks ();
@@ -252,12 +284,13 @@ let execute_phrase print_outcome ppf phr =
         let oldenv = !toplevel_env in
         toplevel_env := Env.clear_diff newenv;
         let res = load_lambda ppf lam in
-        let (enter,ex,f,excf) = !on_diff in
+        (try !env_diff_hooks.env_diff_parse_hook str;
+         with exc -> !env_diff_hooks.env_diff_hook_exc exc);
         (try
-            enter str oldenv newenv;
-            Env.iter_diff f newenv;
-            ex ()
-        with exc -> excf exc);
+            !env_diff_hooks.enter_env_diff str oldenv newenv;
+            Env.iter_diff !env_diff_hooks.env_diff_hook newenv;
+            !env_diff_hooks.exit_env_diff ()
+        with exc -> !env_diff_hooks.env_diff_hook_exc exc);
         let out_phr =
           match res with
           | Result v ->

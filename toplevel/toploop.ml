@@ -67,6 +67,8 @@ let parse_nohooks =
 
 let env_diff_hooks = ref env_diff_nohooks
 let parse_hooks = ref parse_nohooks
+let get_env_diff_hooks () = !env_diff_hooks
+let get_parse_hooks () = !parse_hooks
 let set_env_diff_hooks hooks = env_diff_hooks := hooks
 let set_parse_hooks hooks = parse_hooks := hooks
 

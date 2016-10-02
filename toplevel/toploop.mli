@@ -37,6 +37,9 @@ type parse_hooks =
 val env_diff_nohooks : env_diff_hooks
 val parse_nohooks : parse_hooks
 
+val get_env_diff_hooks : unit -> env_diff_hooks
+val get_parse_hooks : unit -> parse_hooks
+
 val set_env_diff_hooks : env_diff_hooks -> unit
 val set_parse_hooks : parse_hooks -> unit
 

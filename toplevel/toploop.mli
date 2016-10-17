@@ -21,23 +21,23 @@ val setvalue : string -> Obj.t -> unit
 type ('s,'t) env_diff_hooks =
   {
     env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
-    env_diff_parse_exc : exn -> 't;
+    env_diff_parse_exc : exn -> 's -> 't;
     env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
     env_diff_exit : 't -> 's;
-    env_diff_ident_exc : exn -> 's
+    env_diff_ident_exc : exn -> 's -> 's
   }
 
 type 's parse_hook =
   {
-    parse_hook : Typedtree.structure -> 's;
-    parse_hook_exc : exn -> 's
+    parse_hook : Typedtree.structure -> 's -> 's;
+    parse_hook_exc : exn -> 's -> 's
   }
 
 val env_diff_default : 's -> 't -> ('s,'t) env_diff_hooks
 val set_env_diff_hook : 's -> ('s,'t) env_diff_hooks -> unit
 
 val set_parse_hook : 's -> 's parse_hook -> unit
-  
+
 (* Set the load paths, before running anything *)
 
 val set_paths : unit -> unit

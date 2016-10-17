@@ -230,19 +230,19 @@ let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
 type ('s,'t) env_diff_hooks =
   {
     env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
-    env_diff_parse_exc : exn -> 't;
+    env_diff_parse_exc : exn -> 's -> 't;
     env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
     env_diff_exit : 't -> 's;
-    env_diff_ident_exc : exn -> 's
+    env_diff_ident_exc : exn -> 's -> 's
   }
 
 let env_diff_default s t =
   {
     env_diff_parse = (fun _ _ _ _ -> t);
-    env_diff_parse_exc = (fun _ -> t);
+    env_diff_parse_exc = (fun _ _ -> t);
     env_diff_ident = (fun _ _ _ -> t);
     env_diff_exit = (fun _ -> s);
-    env_diff_ident_exc = (fun _ -> s)
+    env_diff_ident_exc = (fun _ _ -> s)
   }
 
 let env_diff_hook = ref (fun _ _ _ -> ())
@@ -253,16 +253,16 @@ let set_env_diff_hook init the_env_diff_hook =
     fun oldenv newenv str ->
     let t =
       try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
-      with exc -> the_env_diff_hook.env_diff_parse_exc exc in
+      with exc -> the_env_diff_hook.env_diff_parse_exc exc !s in
     s := try
           let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
           the_env_diff_hook.env_diff_exit t'
-        with exn -> the_env_diff_hook.env_diff_ident_exc exn
+        with exn -> the_env_diff_hook.env_diff_ident_exc exn !s
 
 type 's parse_hook =
   {
-    parse_hook : Typedtree.structure -> 's;
-    parse_hook_exc : exn -> 's
+    parse_hook : Typedtree.structure -> 's -> 's;
+    parse_hook_exc : exn -> 's -> 's
   }
 
 let parse_hook = ref (fun _ -> ())
@@ -272,9 +272,9 @@ let set_parse_hook init the_parse_hook =
   parse_hook :=
     fun str ->
     s := try
-          the_parse_hook.parse_hook str
-        with exn -> the_parse_hook.parse_hook_exc exn
-    
+          the_parse_hook.parse_hook str !s
+        with exn -> the_parse_hook.parse_hook_exc exn !s
+
 (* Execute a toplevel phrase *)
 
 let execute_phrase print_outcome ppf phr =
@@ -284,7 +284,7 @@ let execute_phrase print_outcome ppf phr =
       Typecore.reset_delayed_checks ();
       let (str, sg, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
-      
+
       !parse_hook str;
       let sg' = Typemod.simplify_signature sg in
       ignore (Includemod.signatures oldenv sg sg');

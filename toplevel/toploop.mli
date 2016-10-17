@@ -18,31 +18,26 @@ open Format
 val getvalue : string -> Obj.t
 val setvalue : string -> Obj.t -> unit
 
-type env_diff_hooks =
+type ('s,'t) env_diff_hooks =
   {
-    enter_env_diff : Typedtree.structure -> Env.t -> Env.t -> unit;
-    env_diff_hook : Ident.t -> Types.value_description -> unit;
-    env_diff_hook_exc : exn -> unit;
-    env_diff_parse_hook : Typedtree.structure -> unit;
-    env_diff_parse_hook_exc : exn -> unit;
-    exit_env_diff : unit -> unit;
+    env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
+    env_diff_parse_exc : exn -> 't;
+    env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
+    env_diff_exit : 't -> 's;
+    env_diff_ident_exc : exn -> 's
   }
 
-type parse_hooks =
+type 's parse_hook =
   {
-    parse_hook : Typedtree.structure -> unit;
-    parse_hook_exc : exn -> unit;
+    parse_hook : Typedtree.structure -> 's;
+    parse_hook_exc : exn -> 's
   }
 
-val env_diff_nohooks : env_diff_hooks
-val parse_nohooks : parse_hooks
+val env_diff_default : 's -> 't -> ('s,'t) env_diff_hooks
+val set_env_diff_hook : 's -> ('s,'t) env_diff_hooks -> unit
 
-val get_env_diff_hooks : unit -> env_diff_hooks
-val get_parse_hooks : unit -> parse_hooks
-
-val set_env_diff_hooks : env_diff_hooks -> unit
-val set_parse_hooks : parse_hooks -> unit
-
+val set_parse_hook : 's -> 's parse_hook -> unit
+  
 (* Set the load paths, before running anything *)
 
 val set_paths : unit -> unit

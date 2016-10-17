@@ -33,45 +33,6 @@ type directive_fun =
 let toplevel_value_bindings =
   (Hashtbl.create 37 : (string, Obj.t) Hashtbl.t)
 
-type env_diff_hooks =
-  {
-    enter_env_diff : Typedtree.structure -> Env.t -> Env.t -> unit;
-    env_diff_hook : Ident.t -> Types.value_description -> unit;
-    env_diff_hook_exc : exn -> unit;
-    env_diff_parse_hook : Typedtree.structure -> unit;
-    env_diff_parse_hook_exc : exn -> unit;
-    exit_env_diff : unit -> unit;
-  }
-
-type parse_hooks =
-  {
-    parse_hook : Typedtree.structure -> unit;
-    parse_hook_exc : exn -> unit;
-  }
-
-let env_diff_nohooks =
-  {
-    enter_env_diff = (fun _ _ _ -> ());
-    env_diff_hook = (fun _ _ -> ());
-    env_diff_hook_exc = (fun _ -> ());
-    env_diff_parse_hook = (fun _ -> ());
-    env_diff_parse_hook_exc = (fun _ -> ());
-    exit_env_diff = (fun () -> ());
-  }
-
-let parse_nohooks =
-  {
-    parse_hook = (fun _ -> ());
-    parse_hook_exc = (fun _ -> ());
-  }
-
-let env_diff_hooks = ref env_diff_nohooks
-let parse_hooks = ref parse_nohooks
-let get_env_diff_hooks () = !env_diff_hooks
-let get_parse_hooks () = !parse_hooks
-let set_env_diff_hooks hooks = env_diff_hooks := hooks
-let set_parse_hooks hooks = parse_hooks := hooks
-
 let getvalue name =
   try
     Hashtbl.find toplevel_value_bindings name
@@ -266,6 +227,54 @@ let print_exception_outcome ppf exn =
 
 let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
 
+type ('s,'t) env_diff_hooks =
+  {
+    env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
+    env_diff_parse_exc : exn -> 't;
+    env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
+    env_diff_exit : 't -> 's;
+    env_diff_ident_exc : exn -> 's
+  }
+
+let env_diff_default s t =
+  {
+    env_diff_parse = (fun _ _ _ _ -> t);
+    env_diff_parse_exc = (fun _ -> t);
+    env_diff_ident = (fun _ _ _ -> t);
+    env_diff_exit = (fun _ -> s);
+    env_diff_ident_exc = (fun _ -> s)
+  }
+
+let env_diff_hook = ref (fun _ _ _ -> ())
+
+let set_env_diff_hook init the_env_diff_hook =
+  let s = ref init in
+  env_diff_hook :=
+    fun oldenv newenv str ->
+    let t =
+      try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
+      with exc -> the_env_diff_hook.env_diff_parse_exc exc in
+    s := try
+          let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
+          the_env_diff_hook.env_diff_exit t'
+        with exn -> the_env_diff_hook.env_diff_ident_exc exn
+
+type 's parse_hook =
+  {
+    parse_hook : Typedtree.structure -> 's;
+    parse_hook_exc : exn -> 's
+  }
+
+let parse_hook = ref (fun _ -> ())
+
+let set_parse_hook init the_parse_hook =
+  let s = ref init in
+  parse_hook :=
+    fun str ->
+    s := try
+          the_parse_hook.parse_hook str
+        with exn -> the_parse_hook.parse_hook_exc exn
+    
 (* Execute a toplevel phrase *)
 
 let execute_phrase print_outcome ppf phr =
@@ -275,8 +284,8 @@ let execute_phrase print_outcome ppf phr =
       Typecore.reset_delayed_checks ();
       let (str, sg, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
-      (try !parse_hooks.parse_hook str;
-       with exc -> !parse_hooks.parse_hook_exc exc);
+      
+      !parse_hook str;
       let sg' = Typemod.simplify_signature sg in
       ignore (Includemod.signatures oldenv sg sg');
       Typecore.force_delayed_checks ();
@@ -286,13 +295,7 @@ let execute_phrase print_outcome ppf phr =
         let oldenv = !toplevel_env in
         toplevel_env := Env.clear_diff newenv;
         let res = load_lambda ppf lam in
-        (try !env_diff_hooks.env_diff_parse_hook str;
-         with exc -> !env_diff_hooks.env_diff_hook_exc exc);
-        (try
-            !env_diff_hooks.enter_env_diff str oldenv newenv;
-            Env.iter_diff !env_diff_hooks.env_diff_hook newenv;
-            !env_diff_hooks.exit_env_diff ()
-        with exc -> !env_diff_hooks.env_diff_hook_exc exc);
+        !env_diff_hook oldenv newenv str;
         let out_phr =
           match res with
           | Result v ->

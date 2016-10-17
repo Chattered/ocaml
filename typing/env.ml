@@ -221,7 +221,7 @@ let empty = {
 
 let clear_diff env = { env with diff_values = EnvTbl.empty }
 
-let iter_diff f env = EnvTbl.fold_name (fun n (_,d) () -> f n d) env.diff_values ()
+let fold_diff f env = EnvTbl.fold_name (fun n (_,d) b -> f n d b) env.diff_values
 
 let in_signature env = {env with in_signature = true}
 

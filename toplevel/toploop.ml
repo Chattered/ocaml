@@ -249,15 +249,17 @@ let env_diff_hook = ref (fun _ _ _ -> ())
 
 let set_env_diff_hook init the_env_diff_hook =
   let s = ref init in
+  let old_env_diff_hook = !env_diff_hook in
   env_diff_hook :=
-    fun oldenv newenv str ->
-    let t =
-      try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
-      with exc -> the_env_diff_hook.env_diff_parse_exc exc !s in
-    s := try
-          let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
-          the_env_diff_hook.env_diff_exit t'
-        with exn -> the_env_diff_hook.env_diff_ident_exc exn !s
+    (fun oldenv newenv str ->
+     let t =
+       try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
+       with exc -> the_env_diff_hook.env_diff_parse_exc exc !s in
+     s := try
+           let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
+           the_env_diff_hook.env_diff_exit t'
+         with exn -> the_env_diff_hook.env_diff_ident_exc exn !s);
+  fun () -> env_diff_hook := old_env_diff_hook
 
 type 's parse_hook =
   {
@@ -269,11 +271,13 @@ let parse_hook = ref (fun _ -> ())
 
 let set_parse_hook init the_parse_hook =
   let s = ref init in
+  let old_parse_hook = !parse_hook in
   parse_hook :=
-    fun str ->
-    s := try
-          the_parse_hook.parse_hook str !s
-        with exn -> the_parse_hook.parse_hook_exc exn !s
+    (fun str ->
+     s := try
+           the_parse_hook.parse_hook str !s
+         with exn -> the_parse_hook.parse_hook_exc exn !s);
+  fun () -> parse_hook := old_parse_hook
 
 (* Execute a toplevel phrase *)
 

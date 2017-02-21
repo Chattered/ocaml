@@ -299,10 +299,10 @@ let execute_phrase print_outcome ppf phr =
         let oldenv = !toplevel_env in
         toplevel_env := Env.clear_diff newenv;
         let res = load_lambda ppf lam in
-        !env_diff_hook oldenv newenv str;
         let out_phr =
           match res with
           | Result v ->
+              !env_diff_hook oldenv newenv str;
               if print_outcome then
                 Printtyp.wrap_printing_env oldenv (fun () ->
                   match str.str_items with

@@ -28,6 +28,7 @@ val transl_store_package:
 
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Ident.t * int
+val defined_idents : structure_item list -> Ident.t list
 
 val primitive_declarations: Primitive.description list ref
 

@@ -47,6 +47,9 @@ val set_paths : unit -> unit
 
 val loop : formatter -> unit
 
+type evaluation_outcome = Result of Obj.t | Exception of exn
+val load_lambda : formatter -> Lambda.lambda -> evaluation_outcome
+
 (* Read and execute a script from the given file *)
 
 val run_script : formatter -> string -> string array -> bool

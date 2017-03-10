@@ -229,7 +229,9 @@ let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
 
 type ('s,'t) env_diff_hooks =
   {
-    env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
+    env_diff_parse : Typedtree.structure -> Types.signature
+                     -> Env.t -> Env.t
+                     -> 's -> 't;
     env_diff_parse_exc : exn -> 's -> 't;
     env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
     env_diff_exit : 't -> 's;
@@ -238,22 +240,22 @@ type ('s,'t) env_diff_hooks =
 
 let env_diff_default s t =
   {
-    env_diff_parse = (fun _ _ _ _ -> t);
+    env_diff_parse = (fun _ _ _ _ _ -> t);
     env_diff_parse_exc = (fun _ _ -> t);
     env_diff_ident = (fun _ _ _ -> t);
     env_diff_exit = (fun _ -> s);
     env_diff_ident_exc = (fun _ _ -> s)
   }
 
-let env_diff_hook = ref (fun _ _ _ -> ())
+let env_diff_hook = ref (fun _ _ _ _ -> ())
 
 let set_env_diff_hook init the_env_diff_hook =
   let s = ref init in
   let old_env_diff_hook = !env_diff_hook in
   env_diff_hook :=
-    (fun oldenv newenv str ->
+    (fun oldenv newenv str sg ->
      let t =
-       try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
+       try the_env_diff_hook.env_diff_parse str sg oldenv newenv !s;
        with exc -> the_env_diff_hook.env_diff_parse_exc exc !s in
      s := try
            let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
@@ -302,7 +304,7 @@ let execute_phrase print_outcome ppf phr =
         let out_phr =
           match res with
           | Result v ->
-              !env_diff_hook oldenv newenv str;
+              !env_diff_hook oldenv newenv str sg';
               if print_outcome then
                 Printtyp.wrap_printing_env oldenv (fun () ->
                   match str.str_items with

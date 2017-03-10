@@ -20,7 +20,8 @@ val setvalue : string -> Obj.t -> unit
 
 type ('s,'t) env_diff_hooks =
   {
-    env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
+    env_diff_parse : Typedtree.structure -> Types.signature
+                     -> Env.t -> Env.t -> 's -> 't;
     env_diff_parse_exc : exn -> 's -> 't;
     env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
     env_diff_exit : 't -> 's;

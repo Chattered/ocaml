@@ -279,6 +279,18 @@ let set_parse_hook init the_parse_hook =
          with exn -> the_parse_hook.parse_hook_exc exn !s);
   fun () -> parse_hook := old_parse_hook
 
+let str_transformer = ref (fun str -> str)
+
+let set_str_transformer init the_str_transformer =
+  let s = ref init in
+  let old_str_transformer = !str_transformer in
+  str_transformer :=
+    (fun str ->
+     let str,the_s = the_str_transformer str !s in
+     s := the_s;
+     str);
+  fun () -> str_transformer := old_str_transformer
+
 (* Execute a toplevel phrase *)
 
 let execute_phrase print_outcome ppf phr =
@@ -293,7 +305,7 @@ let execute_phrase print_outcome ppf phr =
       let sg' = Typemod.simplify_signature sg in
       ignore (Includemod.signatures oldenv sg sg');
       Typecore.force_delayed_checks ();
-      let lam = Translmod.transl_toplevel_definition str in
+      let lam = Translmod.transl_toplevel_definition (!str_transformer str) in
       Warnings.check_fatal ();
       begin try
         let oldenv = !toplevel_env in

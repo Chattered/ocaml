@@ -38,6 +38,8 @@ val env_diff_default : 's -> 't -> ('s,'t) env_diff_hooks
 (* Setting hooks. Both return functions to restore the old hooks. *)
 val set_env_diff_hook : 's -> ('s,'t) env_diff_hooks -> (unit -> unit)
 val set_parse_hook : 's -> 's parse_hook -> (unit -> unit)
+val set_str_transformer : 's -> (Typedtree.structure -> 's -> Typedtree.structure * 's)
+                          -> (unit -> unit)
 
 (* Set the load paths, before running anything *)
 

@@ -230,19 +230,15 @@ let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
 type ('s,'t) env_diff_hooks =
   {
     env_diff_parse : Typedtree.structure -> Env.t -> Env.t -> 's -> 't;
-    env_diff_parse_exc : exn -> 's -> 't;
     env_diff_ident : Ident.t -> Types.value_description -> 't -> 't;
     env_diff_exit : 't -> 's;
-    env_diff_ident_exc : exn -> 's -> 's
   }
 
 let env_diff_default s t =
   {
     env_diff_parse = (fun _ _ _ _ -> t);
-    env_diff_parse_exc = (fun _ _ -> t);
     env_diff_ident = (fun _ _ _ -> t);
     env_diff_exit = (fun _ -> s);
-    env_diff_ident_exc = (fun _ _ -> s)
   }
 
 let env_diff_hook = ref (fun _ _ _ -> ())
@@ -252,19 +248,16 @@ let set_env_diff_hook init the_env_diff_hook =
   let old_env_diff_hook = !env_diff_hook in
   env_diff_hook :=
     (fun oldenv newenv str ->
-     let t =
-       try the_env_diff_hook.env_diff_parse str oldenv newenv !s;
-       with exc -> the_env_diff_hook.env_diff_parse_exc exc !s in
-     s := try
-           let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
-           the_env_diff_hook.env_diff_exit t'
-         with exn -> the_env_diff_hook.env_diff_ident_exc exn !s);
+     try
+       let t = the_env_diff_hook.env_diff_parse str oldenv newenv !s in
+       let t' = Env.fold_diff the_env_diff_hook.env_diff_ident newenv t in
+       s := the_env_diff_hook.env_diff_exit t'
+     with _ -> ());
   fun () -> env_diff_hook := old_env_diff_hook
 
 type 's parse_hook =
   {
     parse_hook : Typedtree.structure -> 's -> 's;
-    parse_hook_exc : exn -> 's -> 's
   }
 
 let parse_hook = ref (fun _ -> ())
@@ -274,9 +267,9 @@ let set_parse_hook init the_parse_hook =
   let old_parse_hook = !parse_hook in
   parse_hook :=
     (fun str ->
-     s := try
-           the_parse_hook.parse_hook str !s
-         with exn -> the_parse_hook.parse_hook_exc exn !s);
+     try
+       s := the_parse_hook.parse_hook str !s
+     with _ -> ());
   fun () -> parse_hook := old_parse_hook
 
 let str_transformer = ref (fun str -> str)
